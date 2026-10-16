@@ -1,0 +1,308 @@
+// Schema do ProtecSeg Academy — PostgreSQL (Neon)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Perfil {
+  ADMIN
+  ALUNO
+}
+
+enum StatusCurso {
+  RASCUNHO
+  PUBLICADO
+  ARQUIVADO
+}
+
+enum TipoConteudoAula {
+  VIDEO
+  TEXTO
+  PDF
+  IMAGEM
+  LINK
+}
+
+enum ProvedorVideo {
+  YOUTUBE
+  VIMEO
+  URL
+}
+
+enum Dificuldade {
+  FACIL
+  MEDIO
+  DIFICIL
+}
+
+enum StatusMatricula {
+  ATIVA
+  CONCLUIDA
+  CANCELADA
+  EXPIRADA
+}
+
+model Usuario {
+  id         Int       @id @default(autoincrement())
+  nome       String
+  email      String    @unique
+  senhaHash  String    @map("senha_hash")
+  perfil     Perfil    @default(ALUNO)
+  ativo      Boolean   @default(true)
+  criadoEm   DateTime  @default(now()) @map("criado_em")
+  ultimoLoginEm DateTime? @map("ultimo_login_em")
+
+  matriculas      Matricula[]
+  progressos      ProgressoAula[]
+  quizTentativas  QuizTentativa[]
+  provaTentativas ProvaTentativa[]
+  certificados    Certificado[]
+  notificacoes    Notificacao[]
+
+  @@map("usuarios")
+}
+
+model Categoria {
+  id     Int     @id @default(autoincrement())
+  nome   String  @unique
+  cursos Curso[]
+
+  @@map("categorias")
+}
+
+model Curso {
+  id                    Int         @id @default(autoincrement())
+  nome                  String
+  descricao             String
+  imagemCapaUrl         String?     @db.Text @map("imagem_capa_url")
+  cargaHoraria          String      @default("") @map("carga_horaria") // texto livre, ex.: "4hrs", "8hrs", "2h30"
+  categoriaId           Int?        @map("categoria_id")
+  categoria             Categoria?  @relation(fields: [categoriaId], references: [id])
+  status                StatusCurso @default(RASCUNHO)
+  ordem                 Int         @default(0)
+
+  // apresentação do curso — construtor de curso (seções 8-9)
+  instrutor             String?
+  objetivos             String?     @db.Text
+  publicoAlvo           String?     @map("publico_alvo") @db.Text
+  preRequisitos         String?     @map("pre_requisitos") @db.Text
+  competencias          String?     @db.Text
+
+  // regras de aprovação (seção 18 do escopo) — valem para todos os módulos do curso
+  percentualMinimoAula  Int      @default(90) @map("percentual_minimo_aula")
+  notaMinimaQuiz        Int      @default(70) @map("nota_minima_quiz")
+  notaMinimaProva       Int      @default(70) @map("nota_minima_prova")
+  maxTentativas         Int      @default(3) @map("max_tentativas")
+  tempoProvaMinutos     Int?     @map("tempo_prova_minutos")
+  numQuestoesProva      Int      @default(20) @map("num_questoes_prova")
+  certificadoHabilitado Boolean  @default(true) @map("certificado_habilitado")
+
+  criadoEm  DateTime @default(now()) @map("criado_em")
+  atualizadoEm DateTime @updatedAt @map("atualizado_em")
+
+  modulos      Modulo[]
+  questoes     Questao[]
+  matriculas   Matricula[]
+  provaTentativas ProvaTentativa[]
+  certificados Certificado[]
+
+  @@index([status])
+  @@map("cursos")
+}
+
+model Modulo {
+  id        Int     @id @default(autoincrement())
+  cursoId   Int     @map("curso_id")
+  curso     Curso   @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  nome      String
+  descricao String?
+  ordem     Int     @default(0)
+
+  aulas          Aula[]
+  questoes       Questao[]
+  quizTentativas QuizTentativa[]
+
+  @@index([cursoId])
+  @@map("modulos")
+}
+
+model Aula {
+  id               Int              @id @default(autoincrement())
+  moduloId         Int              @map("modulo_id")
+  modulo           Modulo           @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  nome             String
+  descricao        String?
+  tipo             TipoConteudoAula @default(VIDEO)
+  provedorVideo    ProvedorVideo?   @map("provedor_video")
+  videoId          String?          @map("video_id")
+  videoUrl         String?          @map("video_url")
+  conteudoTexto    String?          @map("conteudo_texto")
+  duracaoSegundos  Int?             @map("duracao_segundos")
+  ordem            Int              @default(0)
+
+  materiais  Material[]
+  progressos ProgressoAula[]
+
+  @@index([moduloId])
+  @@map("aulas")
+}
+
+model Material {
+  id     Int    @id @default(autoincrement())
+  aulaId Int    @map("aula_id")
+  aula   Aula   @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  nome   String
+  tipo   String
+  url    String
+
+  @@index([aulaId])
+  @@map("materiais")
+}
+
+// Matrícula é sempre criada pelo ADMIN (nunca pelo próprio aluno — seção 3
+// do fluxo de acesso). "matriculadoEm" é a data em que o admin concedeu
+// acesso; "iniciadoEm" só é preenchido quando o aluno de fato abre a
+// primeira aula. Cancelar NUNCA apaga a linha (histórico para relatórios) —
+// só muda o status para CANCELADA.
+model Matricula {
+  id            Int             @id @default(autoincrement())
+  usuarioId     Int             @map("usuario_id")
+  usuario       Usuario         @relation(fields: [usuarioId], references: [id])
+  cursoId       Int             @map("curso_id")
+  curso         Curso           @relation(fields: [cursoId], references: [id])
+  status        StatusMatricula @default(ATIVA)
+  progressoPct  Int             @default(0) @map("progresso_pct")
+  matriculadoEm DateTime        @default(now()) @map("matriculado_em")
+  iniciadoEm    DateTime?       @map("iniciado_em")
+  concluidoEm   DateTime?       @map("concluido_em")
+  expiraEm      DateTime?       @map("expira_em")
+  atualizadoEm  DateTime        @updatedAt @map("atualizado_em")
+
+  @@unique([usuarioId, cursoId])
+  @@index([cursoId])
+  @@map("matriculas")
+}
+
+model ProgressoAula {
+  id                   Int       @id @default(autoincrement())
+  usuarioId            Int       @map("usuario_id")
+  usuario              Usuario   @relation(fields: [usuarioId], references: [id])
+  aulaId               Int       @map("aula_id")
+  aula                 Aula      @relation(fields: [aulaId], references: [id])
+  percentualAssistido  Int       @default(0) @map("percentual_assistido")
+  concluida            Boolean   @default(false)
+  ultimaPosicaoSegundos Int      @default(0) @map("ultima_posicao_segundos")
+  concluidaEm          DateTime? @map("concluida_em")
+  atualizadoEm         DateTime  @updatedAt @map("atualizado_em")
+
+  @@unique([usuarioId, aulaId])
+  @@index([aulaId])
+  @@map("progresso_aulas")
+}
+
+// Banco central de questões (seção 21). moduloId nulo = questão de banco geral
+// do curso, usada só na prova final; moduloId preenchido = pertence ao quiz
+// daquele módulo.
+model Questao {
+  id                  Int         @id @default(autoincrement())
+  cursoId             Int         @map("curso_id")
+  curso               Curso       @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  moduloId            Int?        @map("modulo_id")
+  modulo              Modulo?     @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  enunciado           String
+  alternativas        Json // string[4]
+  respostaCorretaIndex Int        @map("resposta_correta_index")
+  explicacao          String?
+  pontuacao           Int         @default(1)
+  dificuldade         Dificuldade @default(MEDIO)
+
+  criadoEm DateTime @default(now()) @map("criado_em")
+
+  @@index([cursoId])
+  @@index([moduloId])
+  @@map("questoes")
+}
+
+model QuizTentativa {
+  id            Int      @id @default(autoincrement())
+  usuarioId     Int      @map("usuario_id")
+  usuario       Usuario  @relation(fields: [usuarioId], references: [id])
+  moduloId      Int      @map("modulo_id")
+  modulo        Modulo   @relation(fields: [moduloId], references: [id])
+  respostasJson Json     @map("respostas_json")
+  nota          Int
+  aprovado      Boolean
+  tentativaNum  Int      @map("tentativa_num")
+  criadoEm      DateTime @default(now()) @map("criado_em")
+
+  @@index([usuarioId, moduloId])
+  @@map("quiz_tentativas")
+}
+
+model ProvaTentativa {
+  id                    Int       @id @default(autoincrement())
+  usuarioId             Int       @map("usuario_id")
+  usuario               Usuario   @relation(fields: [usuarioId], references: [id])
+  cursoId               Int       @map("curso_id")
+  curso                 Curso     @relation(fields: [cursoId], references: [id])
+  questoesSnapshotJson  Json      @map("questoes_snapshot_json")
+  respostasJson         Json?     @map("respostas_json")
+  nota                  Int?
+  aprovado              Boolean?
+  tentativaNum          Int       @map("tentativa_num")
+  iniciadoEm            DateTime  @default(now()) @map("iniciado_em")
+  finalizadoEm          DateTime? @map("finalizado_em")
+
+  @@index([usuarioId, cursoId])
+  @@map("prova_tentativas")
+}
+
+model Certificado {
+  id                  Int      @id @default(autoincrement())
+  codigo              String   @unique
+  usuarioId           Int      @map("usuario_id")
+  usuario             Usuario  @relation(fields: [usuarioId], references: [id])
+  cursoId             Int      @map("curso_id")
+  curso               Curso    @relation(fields: [cursoId], references: [id])
+  cargaHoraria        String   @map("carga_horaria")
+  emitidoEm           DateTime @default(now()) @map("emitido_em")
+
+  @@unique([usuarioId, cursoId])
+  @@map("certificados")
+}
+
+model Notificacao {
+  id        Int      @id @default(autoincrement())
+  usuarioId Int      @map("usuario_id")
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  tipo      String
+  mensagem  String
+  link      String?
+  lida      Boolean  @default(false)
+  criadoEm  DateTime @default(now()) @map("criado_em")
+
+  @@index([usuarioId, lida])
+  @@map("notificacoes")
+}
+
+// linha única (id sempre 1) — regras padrão aplicadas a cursos novos (seção
+// 31 do escopo: "Configurações → Certificados/Plataforma"). O admin ainda
+// pode sobrescrever por curso em DadosGeraisTab; isso só define o valor
+// inicial ao clicar em "Novo curso".
+model ConfiguracaoPlataforma {
+  id                          Int     @id @default(1)
+  percentualMinimoAulaPadrao  Int     @default(90) @map("percentual_minimo_aula_padrao")
+  notaMinimaQuizPadrao        Int     @default(70) @map("nota_minima_quiz_padrao")
+  notaMinimaProvaPadrao       Int     @default(70) @map("nota_minima_prova_padrao")
+  maxTentativasPadrao         Int     @default(3) @map("max_tentativas_padrao")
+  numQuestoesProvaPadrao      Int     @default(20) @map("num_questoes_prova_padrao")
+  atualizadoEm                DateTime @updatedAt @map("atualizado_em")
+
+  @@map("configuracao_plataforma")
+}
