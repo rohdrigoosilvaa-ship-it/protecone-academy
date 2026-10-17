@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Maximize, Minimize, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { loadScript } from "../../lib/loadScript";
 import type { Aula } from "../../lib/types";
 
@@ -27,6 +27,19 @@ export function VideoPlayer({ aula, onProgresso, onConcluida }: Props) {
   // controles próprios (YouTube/Vimeo): o player do provedor fica coberto por
   // uma camada transparente, assim o aluno não consegue clicar no título, no
   // logo ou em "Assistir no YouTube" e sair da plataforma.
+  const telaCheiaRef = useRef<HTMLDivElement>(null);
+  const [telaCheia, setTelaCheia] = useState(false);
+  useEffect(() => {
+    const aoMudar = () => setTelaCheia(document.fullscreenElement === telaCheiaRef.current);
+    document.addEventListener("fullscreenchange", aoMudar);
+    return () => document.removeEventListener("fullscreenchange", aoMudar);
+  }, []);
+  // a tela cheia é do nosso contêiner (vídeo + controles), não do player do
+  // provedor — assim a camada de bloqueio e os controles continuam ativos
+  const alternarTelaCheia = () => {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else telaCheiaRef.current?.requestFullscreen().catch(() => {});
+  };
   const [tocando, setTocando] = useState(false);
   const [mudo, setMudo] = useState(false);
   const [atual, setAtual] = useState(0);
@@ -151,8 +164,8 @@ export function VideoPlayer({ aula, onProgresso, onConcluida }: Props) {
     const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
     const pct = duracao > 0 ? Math.min(100, (atual / duracao) * 100) : 0;
     return (
-      <div>
-        <div className="relative aspect-video w-full overflow-hidden rounded-[var(--radius-card-lg)] bg-black [&_iframe]:h-full [&_iframe]:w-full">
+      <div ref={telaCheiaRef} className={telaCheia ? "flex h-screen w-screen flex-col bg-black p-2" : ""}>
+        <div className={`relative w-full overflow-hidden bg-black [&_iframe]:h-full [&_iframe]:w-full ${telaCheia ? "min-h-0 flex-1" : "aspect-video rounded-[var(--radius-card-lg)]"}`}>
           <div ref={containerRef} className="h-full w-full" />
           {/* camada que bloqueia qualquer clique no player do provedor */}
           <div
@@ -182,6 +195,9 @@ export function VideoPlayer({ aula, onProgresso, onConcluida }: Props) {
             className="hover:text-[var(--color-green)]"
           >
             {mudo ? <VolumeX size={18} /> : <Volume2 size={18} />}
+          </button>
+          <button onClick={alternarTelaCheia} aria-label={telaCheia ? "Sair da tela cheia" : "Tela cheia"} className="hover:text-[var(--color-green)]">
+            {telaCheia ? <Minimize size={18} /> : <Maximize size={18} />}
           </button>
         </div>
       </div>
