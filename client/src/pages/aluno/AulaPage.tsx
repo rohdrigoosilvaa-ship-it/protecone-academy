@@ -19,6 +19,8 @@ export function AulaPage() {
     else throw e;
   });
   useEffect(() => { carregar(); }, [cursoId, aulaId]);
+  // ao trocar de aula, volta para o topo da página (início da nova aula)
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [aulaId]);
 
   if (negado) return <AcessoNegado />;
   if (!dados) return <Spinner />;
@@ -29,6 +31,10 @@ export function AulaPage() {
 
   const indiceAtual = todasAulas.findIndex((a) => a.id === aula.id);
   const proxima = todasAulas[indiceAtual + 1];
+  const moduloAtual = dados.modulos.find((m) => m.id === aula.moduloId);
+  const ultimaDoModulo = moduloAtual?.aulas[moduloAtual.aulas.length - 1]?.id === aula.id;
+  // última aula do módulo: o próximo passo é o quiz, não a primeira aula do módulo seguinte
+  const irParaQuiz = !!moduloAtual && ultimaDoModulo && moduloAtual.quiz.temQuestoes;
 
   const registrarProgresso = (percentual: number, segundos: number) => {
     api("PATCH", `/api/progresso/aula/${aula.id}`, { percentualAssistido: percentual, ultimaPosicaoSegundos: segundos }).catch(() => {});
@@ -97,13 +103,25 @@ export function AulaPage() {
             <span className="flex items-center gap-1.5 text-sm font-semibold text-[var(--color-green)]"><CheckCircle2 size={16} /> Aula concluída</span>
           ) : <span />}
 
-          {proxima && (
+          {irParaQuiz && moduloAtual ? (
+            <Button
+              variant="secondary"
+              disabled={!moduloAtual.quiz.liberado}
+              onClick={() => navigate(`/cursos/${cursoId}/modulos/${moduloAtual.id}/quiz`)}
+            >
+              Fazer quiz do módulo →
+            </Button>
+          ) : proxima ? (
             <Button
               variant="secondary"
               disabled={proxima.bloqueada}
               onClick={() => navigate(`/cursos/${cursoId}/aulas/${proxima.id}`)}
             >
               Próxima aula →
+            </Button>
+          ) : (
+            <Button variant="secondary" disabled={!dados.provaFinalLiberada} onClick={() => navigate(`/cursos/${cursoId}/prova-final`)}>
+              Ir para a prova final →
             </Button>
           )}
         </div>
