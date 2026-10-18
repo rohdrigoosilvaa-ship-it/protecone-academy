@@ -1,10 +1,27 @@
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 import QRCode from "qrcode";
+import { readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { env } from "../config/env.js";
 
 const VERDE = rgb(0 / 255, 102 / 255, 61 / 255); // --color-institutional
 const VERDE_CLARO = rgb(0 / 255, 153 / 255, 76 / 255); // --color-green
 const CINZA = rgb(0.3, 0.3, 0.3);
+
+// logo da marca — vem do build do cliente (client/dist) ou, em dev, de client/public
+async function carregarLogo() {
+  const aqui = path.dirname(fileURLToPath(import.meta.url));
+  const candidatos = [
+    path.resolve(aqui, "../../../client/dist/logo/protechub.png"),
+    path.resolve(aqui, "../../../client/public/logo/protechub.png"),
+    path.resolve(process.cwd(), "client/dist/logo/protechub.png"),
+  ];
+  for (const caminho of candidatos) {
+    try { return await readFile(caminho); } catch { /* tenta o próximo */ }
+  }
+  return null;
+}
 
 export async function gerarPdfCertificado(certificado) {
   const doc = await PDFDocument.create();
@@ -25,8 +42,16 @@ export async function gerarPdfCertificado(certificado) {
     page.drawText(texto, { x: (width - w) / 2, y, size: tamanho, font, color: cor });
   };
 
-  centro("PROTECSEG ACADEMY", 20, fontTitulo, height - 90, VERDE);
-  centro("CERTIFICADO DE CONCLUSÃO", 14, fontTexto, height - 118, CINZA);
+  const logoBytes = await carregarLogo();
+  if (logoBytes) {
+    const logo = await doc.embedPng(logoBytes);
+    const altura = 72;
+    const largura = (logo.width / logo.height) * altura;
+    page.drawImage(logo, { x: (width - largura) / 2, y: height - 40 - altura, width: largura, height: altura });
+  } else {
+    centro("PROTECHUB", 20, fontTitulo, height - 90, VERDE);
+  }
+  centro("CERTIFICADO DE CONCLUSÃO", 14, fontTexto, height - 132, CINZA);
 
   centro("Certificamos que", 13, fontTexto, height - 190);
   centro(certificado.usuario.nome, 28, fontTitulo, height - 230, VERDE_CLARO);

@@ -44,7 +44,7 @@ export function AdminDashboardPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-[var(--color-ink)]">Dashboard</h1>
-      <p className="mt-1 text-[var(--color-gray-mid)]">Visão geral da ProtecSeg Academy.</p>
+      <p className="mt-1 text-[var(--color-gray-mid)]">Visão geral da ProtecHub.</p>
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Indicador icone={<Users size={18} />} label="Total de alunos" valor={indicadores.totalAlunos} />

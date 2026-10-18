@@ -1,4 +1,4 @@
-# ProtecSeg Academy — plataforma de treinamentos EAD
+# ProtecHub — plataforma de treinamentos EAD
 
 Plataforma completa de treinamentos online (EAD): cursos, módulos, aulas em
 vídeo, quiz por módulo, prova final, certificado com QR Code e painel
