@@ -39,7 +39,7 @@ export function ValidarCertificadoPage() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-institutional-deep)] px-4 py-10">
       <div className="w-full max-w-lg">
         <div className="mb-6 flex flex-col items-center text-white">
-          <img src="/logo/logo-reverse.png" alt="ProtecSeg" className="h-16 w-auto object-contain" />
+          <div className="rounded-[var(--radius-btn)] bg-white px-4 py-2"><img src="/logo/protechub.png" alt="ProtecHub" className="h-14 w-auto object-contain" /></div>
           <div className="mt-1.5 text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-green)]">Validação de certificado</div>
         </div>
 

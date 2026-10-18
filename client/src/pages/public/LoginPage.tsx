@@ -29,9 +29,8 @@ export function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--color-institutional-deep)] px-4">
       <div className="w-full max-w-md rounded-[var(--radius-card-xl)] bg-white p-8 shadow-[var(--shadow-card-lg)]">
-        <div className="mb-6">
-          <img src="/logo/logo-color.png" alt="ProtecSeg" className="h-16 w-auto object-contain" />
-          <div className="mt-1 text-xs font-bold uppercase tracking-[0.15em] text-[var(--color-green)]">Academy</div>
+        <div className="mb-6 flex justify-center">
+          <img src="/logo/protechub.png" alt="ProtecHub - Conhecimento que protege" className="h-28 w-auto object-contain" />
         </div>
         <h1 className="mb-1 text-xl font-bold text-[var(--color-ink)]">Entrar</h1>
         <p className="mb-6 text-sm text-[var(--color-gray-mid)]">Acesse com seu e-mail e senha para continuar seus treinamentos.</p>
