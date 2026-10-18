@@ -34,7 +34,7 @@ export function AdminLayout() {
       >
         <div className={`flex items-center border-b border-white/10 px-5 py-6 ${colapsada ? "md:justify-center md:px-0" : "justify-between"}`}>
           <div className={colapsada ? "md:hidden" : ""}>
-            <img src="/logo/protechub.png" alt="ProtecHub" className="h-16 w-auto object-contain" />
+            <img src="/logo/protechub-claro.png" alt="ProtecHub" className="h-16 w-auto object-contain" />
             <div className="mt-1 text-xs text-white/70">por <strong className="text-white">ProtecSeg</strong></div>
             <div className="mt-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[var(--color-green)]">Administração</div>
           </div>
